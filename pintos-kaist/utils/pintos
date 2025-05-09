@@ -134,6 +134,7 @@ class Pintos(object):
         cmd.extend(['-no-reboot'])
         # cmd.extend(['-enable-kvm']) # Sadly, kvm is not available on server.
         cmd.extend(['-serial', 'mon:stdio'])
+        cmd.extend(['-icount', 'shift=7,align=off,sleep=on'])
         return cmd
 
     def get_files(self, gets):

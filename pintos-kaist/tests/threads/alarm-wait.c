@@ -59,7 +59,7 @@ test_sleep (int thread_cnt, int iterations)
   /* This test does not work with the MLFQS. */
   ASSERT (!thread_mlfqs);
 
-  msg ("Creating %d threads to sleep %d times each.", thread_cnt, iterations);
+  msg ("Creating %d threads to sleep %d times each.", thread_cnt, iterations); // creating 5 threads to sleep 1 times each
   msg ("Thread 0 sleeps 10 ticks each time,");
   msg ("thread 1 sleeps 20 ticks each time, and so on.");
   msg ("If successful, product of iteration count and");
@@ -90,6 +90,7 @@ test_sleep (int thread_cnt, int iterations)
       t->iterations = 0;
 
       snprintf (name, sizeof name, "thread %d", i);
+      // thread id, priority, routine, vargp
       thread_create (name, PRI_DEFAULT, sleeper, t);
     }
   
