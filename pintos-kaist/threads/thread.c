@@ -651,7 +651,7 @@ wakeup()
 			thread_unblock(ct);
 			intr_set_level(older_level);
 			dprintf("[%p] woke up \n", ct);
-			global_tick = get_min_tick();
+			set_global_tick();
 		}
 		curr = next;
 	}

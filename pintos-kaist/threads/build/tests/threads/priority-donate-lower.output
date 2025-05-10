@@ -4,7 +4,7 @@ Kernel command line: -q run priority-donate-lower
 Pintos booting with: 
 	base_mem: 0x0 ~ 0x9fc00 (Usable: 639 kB)
 	ext_mem: 0x100000 ~ 0x13e0000 (Usable: 19,328 kB)
-Calibrating timer...  21,273,600 loops/s.
+Calibrating timer...  26,188,800 loops/s.
 Boot complete.
 Executing 'priority-donate-lower':
 (priority-donate-lower) begin
@@ -14,9 +14,12 @@ Executing 'priority-donate-lower':
 (priority-donate-lower) acquire must already have finished.
 (priority-donate-lower) Main thread should have priority 21.  Actual priority: 21.
 (priority-donate-lower) end
-Execution of 'priority-donate-lower' complete.
-Timer: 82 ticks
-Thread: 1 idle ticks, 84 kernel ticks, 0 user ticks
-Console: 820 characters output
-Keyboard: 0 keys pressed
-Powering off...
+(priority-donate-lower) acquire: got the lock
+Kernel PANIC at ../../threads/synch.c:223 in lock_release(): assertion `lock_held_by_current_thread (lock)' failed.
+Call stack: 0x8004213546 0x800420a09f 0x8004218b87 0x80042071b7.
+The `backtrace' program can make call stacks useful.
+Read "Backtraces" in the "Debugging Tools" chapter
+of the Pintos documentation for more information.
+Timer: 80 ticks
+Thread: 0 idle ticks, 80 kernel ticks, 0 user ticks
+Console: 1

@@ -1,2 +1,2 @@
 FAIL
-Run didn't shut down properly: no "Timer: # ticks" message
+First iteration does not list all threads 0...15
