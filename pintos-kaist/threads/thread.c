@@ -111,9 +111,7 @@ void thread_init(void)
 	list_init(&destruction_req);
 	list_init(&sleep_list);
 	global_tick = INT64_MAX;
-	//dprintf("Thread INIT called! \n"); //
-
-
+	// dprintf("Thread INIT called! \n"); //
 
 	/* Set up a thread structure for the running thread. */
 	initial_thread = running_thread();
@@ -618,48 +616,50 @@ allocate_tid(void)
 }
 
 // The function that sets thread state to blocked and wait after insert it to sleep queue
-void
-thread_sleep(int64_t local_tick)
+void thread_sleep(int64_t local_tick)
 {
 	enum intr_level older_level;
 	older_level = intr_disable();
 	struct thread *curr = thread_current();
-	curr->local_tick = local_tick;
-	list_push_back(&sleep_list, &curr->elem);
-	thread_block();
-	dprintf("[%p] thread added to sleep_list. \t local tick: %d\t", curr, curr->local_tick);
+	if (curr != idle_thread)
+	{
+		curr->local_tick = local_tick;
+		list_push_back(&sleep_list, &curr->elem);
+		thread_block();
+		dprintf("[%p] thread added to sleep_list. \t local tick: %d\t", curr, curr->local_tick);
+	}
 	intr_set_level(older_level);
 }
 
-void
-wakeup()
+void wakeup()
 {
-	struct list_elem *curr = list_begin(&sleep_list);
+	struct list_elem *e = list_begin(&sleep_list);
 	// if(list_empty(&sleep_list)) //dprintf("list is empty\n");
-	// else //dprintf("wakeup() called. curr = %p\n", curr);
+	// else //dprintf("wakeup() called. e = %p\n", e);
 	// while cursur is not the tail
-	while (curr != list_end(&sleep_list))
+	while (e != list_end(&sleep_list))
 	{
 		ASSERT(!list_empty(&sleep_list));
-		struct thread *ct = list_entry(curr, struct thread, elem);
-		struct list_elem *next = curr->next;
-		if (ct->local_tick <= timer_ticks()) 
+		struct thread *curr = list_entry(e, struct thread, elem);
+		struct list_elem *next = e->next;
+		if (curr->local_tick <= timer_ticks())
 		{
 			enum intr_level older_level;
 			older_level = intr_disable();
-			list_remove(curr);
-			thread_unblock(ct);
-			intr_set_level(older_level);
-			dprintf("[%p] woke up \n", ct);
+			if (curr != idle_thread){
+				list_remove(e);
+				thread_unblock(curr);
+				intr_set_level(older_level);
+				dprintf("[%p] woke up \n", curr);
+			}
 			set_global_tick();
 		}
-		curr = next;
+		e = next;
 	}
 }
 
 // The function that save the minimum value of tick the threads have
-void
-set_global_tick()
+void set_global_tick()
 {
 	global_tick = get_min_tick();
 }
@@ -671,16 +671,25 @@ get_min_tick()
 	{
 		return INT64_MAX;
 	}
- 	struct list_elem *min_elem = list_min(&sleep_list, tick_less, NULL);
+	struct list_elem *min_elem = list_min(&sleep_list, tick_less, NULL);
 	struct thread *t = list_entry(min_elem, struct thread, elem);
 	return t->local_tick;
 }
 
 // compare local tick of given elems(threads)
-bool tick_less(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED) {
-    struct thread *ta = list_entry(a, struct thread, elem);
-    struct thread *tb = list_entry(b, struct thread, elem);
-    return ta->local_tick < tb->local_tick;
+bool tick_less(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)
+{
+	struct thread *ta = list_entry(a, struct thread, elem);
+	struct thread *tb = list_entry(b, struct thread, elem);
+	return ta->local_tick < tb->local_tick;
+}
+
+// compare priority of threads of list_elems
+bool cmp_priority(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)
+{
+	struct thread *ta = list_entry(a, struct thread, elem);
+	struct thread *tb = list_entry(b, struct thread, elem);
+	return ta->priority > tb->priority;
 }
 
 void print_thread_list(struct list *l)
