@@ -150,5 +150,5 @@ void wakeup();
 void set_global_tick();
 int64_t get_min_tick();
 bool tick_less(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED); 
-
+bool cmp_priority(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
 #endif /* threads/thread.h */
