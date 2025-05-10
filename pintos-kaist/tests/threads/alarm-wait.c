@@ -145,8 +145,9 @@ sleeper (void *t_)
   for (i = 1; i <= test->iterations; i++) 
     {
       int64_t sleep_until = test->start + i * t->duration;
+      // printf("[%p] sleeper init. \tduration: %d\tid: %d \t global tick: %d\t sleep until: %d\n", t, t->duration, t->id, global_tick, sleep_until);
       timer_sleep (sleep_until - timer_ticks ());
-      lock_acquire (&test->output_lock);
+      lock_acquire(&test->output_lock);
       *test->output_pos++ = t->id;
       lock_release (&test->output_lock);
     }

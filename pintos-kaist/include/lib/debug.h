@@ -36,3 +36,13 @@ void debug_backtrace (void);
 #define ASSERT(CONDITION) ((void) 0)
 #define NOT_REACHED() for (;;)
 #endif /* lib/debug.h */
+
+
+// 디버깅 출력 활성화하려면 아래 줄을 주석 해제
+// #define DEBUG_PRINT
+
+#ifdef DEBUG_PRINT
+#define dprintf(...) printf(__VA_ARGS__)
+#else
+#define dprintf(...) ((void)0)
+#endif
