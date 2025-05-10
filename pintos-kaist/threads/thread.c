@@ -189,12 +189,15 @@ tid_t thread_create(const char *name, int priority,
 
 	/* Allocate thread. */
 	t = palloc_get_page(PAL_ZERO);
+	dprintf("[%p] creating thread. palloc done.\t priority: %d\n", t, priority);
+
 	if (t == NULL)
 		return TID_ERROR;
 
 	/* Initialize thread. */
 	init_thread(t, name, priority);
 	tid = t->tid = allocate_tid();
+	dprintf("[%p] tid allocated %d\n", t, tid);
 
 	/* Call the kernel_thread if it scheduled.
 	 * Note) rdi is 1st argument, and rsi is 2nd argument. */
@@ -209,6 +212,12 @@ tid_t thread_create(const char *name, int priority,
 
 	/* Add to run queue. */
 	thread_unblock(t);
+	dprintf("[%p] thread unblocked \n", t);
+
+	struct thread *curr = thread_current();
+
+	if (t->priority > curr->priority) thread_yield();
+	
 
 	return tid;
 }
@@ -331,8 +340,18 @@ void thread_yield(void)
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void thread_set_priority(int new_priority)
 {
+	struct thread *old_t = thread_current();
 	thread_current()->priority = new_priority;
+	dprintf("[%p] set priority to %d\n", thread_current(), new_priority);
 	list_sort(&ready_list, cmp_priority, NULL);
+	dprintf("[%p] reordered ready list according to priority\n", thread_current());
+	// print_thread_list(&ready_list);
+	struct list_elem *ready_head = list_begin(&ready_list);
+	struct thread *head_thread = list_entry(ready_head, struct thread, elem);
+
+	dprintf("current ready list head: %p, priority: %d\n", head_thread, head_thread->priority);
+	thread_yield();
+	dprintf("%p -> %p\n", old_t, thread_current());
 }
 
 /* Returns the current thread's priority. */
@@ -699,10 +718,12 @@ bool cmp_priority(const struct list_elem *a, const struct list_elem *b, void *au
 
 void print_thread_list(struct list *l)
 {
-	for (struct list_elem *e = list_begin(&l); e != list_end(&l); e = e->next)
+	struct list_elem *e;
+	dprintf("printing list %p\n", l);
+	for ( e = list_begin(&l); e != list_end(&l); e = list_next(e))
 	{
 		struct thread *t = list_entry(e, struct thread, elem);
-		printf("%p->", t);
+		printf("%p, %d->", t, t->priority);
 	}
 	printf("\n");
 }
