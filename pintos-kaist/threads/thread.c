@@ -322,7 +322,8 @@ void thread_yield(void)
 	// 스케줄러가 다음에 실행할 스레드를 고를 때 idle_thread가 불필요하게 선택될 수 있습니다.
 	// 이는 스케줄링의 의미를 훼손하고, idle_thread가 계속해서 ready_list에 남아 있게 되어 의도하지 않은 동작을 유발할 수 있습니다.
 	if (curr != idle_thread)
-		list_push_back(&ready_list, &curr->elem);
+		// list_push_back(&ready_list, &curr->elem);
+		list_insert_ordered(&ready_list, &curr->elem, cmp_priority, NULL);
 	do_schedule(THREAD_READY);
 	intr_set_level(old_level);
 }
