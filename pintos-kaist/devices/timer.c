@@ -130,7 +130,7 @@ timer_interrupt (struct intr_frame *args UNUSED) {
 	thread_tick ();
 	set_global_tick();
 	//dprintf("global tick: %d \t get_min_tick(): %d", global_tick, get_min_tick());
-	if (global_tick >= get_min_tick()) // if the global invariable is violated..
+	if (global_tick >= timer_ticks()) // if the global invariable is violated..
 	{
 		wakeup();
 	}
