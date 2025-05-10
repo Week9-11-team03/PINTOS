@@ -332,6 +332,7 @@ void thread_yield(void)
 void thread_set_priority(int new_priority)
 {
 	thread_current()->priority = new_priority;
+	list_sort(&ready_list, cmp_priority, NULL);
 }
 
 /* Returns the current thread's priority. */
