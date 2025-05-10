@@ -69,7 +69,7 @@ static struct list sleep_list;
 /* next tick to awake: 슬립 리스트에서 대기 중인 스레드들의 wakeup_tick 값 중 최솟값을 저장 */
 static int64_t next_tick_to_awake;
 
-static long long next_tick_to_awake;
+//static long long next_tick_to_awake;
 
 
 
@@ -317,6 +317,38 @@ thread_yield (void) {
 	do_schedule (THREAD_READY);
 	intr_set_level (old_level);
 }
+
+void
+thread_sleep(int64_t ticks) {
+  struct thread *cur = thread_current ();
+  enum intr_level old_level;
+
+  if (cur == idle_thread) return;
+
+  old_level = intr_disable ();
+  cur->wakeup = ticks;
+  list_push_back(&sleep_list, &cur->elem); // 또는 정렬 넣어도 됨
+  thread_block ();
+  intr_set_level (old_level);
+}
+
+void
+thread_awake(int64_t current_ticks) {
+  struct list_elem *e = list_begin(&sleep_list);
+
+  while (e != list_end(&sleep_list)) {
+    struct thread *t = list_entry(e, struct thread, elem);
+    if (t->wakeup <= current_ticks) {
+      e = list_remove(e);
+      thread_unblock(t);
+    } else {
+      e = list_next(e);
+    }
+  }
+}
+
+
+
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void
