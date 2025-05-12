@@ -1,12 +1,25 @@
 FAIL
-Kernel panic in run: PANIC at ../../threads/interrupt.c:361 in intr_handler(): Unexpected interrupt
-Call stack: 0x80042132eb 0x800420889c 0x8004208c4e 0x800420d0b9 0x8004208830 0x8004208c4e 0x800420ce29 0x80042060f7
-Translation of call stack:
-0x00000080042132eb: debug_panic (lib/kernel/debug.c:32)
-0x000000800420889c: intr_handler (threads/interrupt.c:365)
-0x0000008004208c4e: intr_entry (threads/intr-stubs.o:?)
-0x000000800420d0b9: timer_interrupt (devices/timer.c:135)
-0x0000008004208830: intr_handler (threads/interrupt.c:352)
-0x0000008004208c4e: intr_entry (threads/intr-stubs.o:?)
-0x000000800420ce29: timer_calibrate (devices/timer.c:62)
-0x00000080042060f7: main (threads/init.c:119)
+Test output failed to match any acceptable form.
+
+Acceptable output:
+  (priority-donate-lower) begin
+  (priority-donate-lower) Main thread should have priority 41.  Actual priority: 41.
+  (priority-donate-lower) Lowering base priority...
+  (priority-donate-lower) Main thread should have priority 41.  Actual priority: 41.
+  (priority-donate-lower) acquire: got the lock
+  (priority-donate-lower) acquire: done
+  (priority-donate-lower) acquire must already have finished.
+  (priority-donate-lower) Main thread should have priority 21.  Actual priority: 21.
+  (priority-donate-lower) end
+Differences in `diff -u' format:
+  (priority-donate-lower) begin
+- (priority-donate-lower) Main thread should have priority 41.  Actual priority: 41.
++ (priority-donate-lower) Main thread should have priority 41.  Actual priority: 31.
+  (priority-donate-lower) Lowering base priority...
+- (priority-donate-lower) Main thread should have priority 41.  Actual priority: 41.
+- (priority-donate-lower) acquire: got the lock
+- (priority-donate-lower) acquire: done
++ (priority-donate-lower) Main thread should have priority 41.  Actual priority: 21.
+  (priority-donate-lower) acquire must already have finished.
+  (priority-donate-lower) Main thread should have priority 21.  Actual priority: 21.
+  (priority-donate-lower) end

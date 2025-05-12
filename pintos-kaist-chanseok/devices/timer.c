@@ -98,7 +98,9 @@ timer_sleep (int64_t ticks) {
 	ASSERT (intr_get_level () == INTR_ON);
 	// while (timer_elapsed (start) < ticks) //start 부터 지금까지 지난 tick 수를 계산 , while 주어진 tick 만큼 시간이 지나지 않았다면 thread_yield()호출하여 CPU 양보 
 	// 	thread_yield (); //현재 스레드를 ready_list에 다시 넣고 CPU 양보
-	thread_sleep(start + ticks);
+	
+	if(timer_elapsed (start) < ticks)
+	thread_sleep(start + ticks); 
 }
 
 /* Suspends execution for approximately MS milliseconds. */

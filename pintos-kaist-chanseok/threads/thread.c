@@ -67,6 +67,7 @@ static tid_t allocate_tid (void);
 /* sleep list: thread blocked 상태의 스레드를 관리하기 위한 리스트 자료구조 */
 static struct list sleep_list;
 /* next tick to awake: 슬립 리스트에서 대기 중인 스레드들의 wakeup_tick 값 중 최솟값을 저장 */
+
 static int64_t next_tick_to_awake;
 
 //static long long next_tick_to_awake;
@@ -103,7 +104,7 @@ static uint64_t gdt[3] = { 0, 0x00af9a000000ffff, 0x00cf92000000ffff };
    It is not safe to call thread_current() until this function
    finishes. */
 void
-thread_init (void) {
+thread_init (void) { 
 	ASSERT (intr_get_level () == INTR_OFF);
 
 	/* Reload the temporal gdt for the kernel
@@ -119,6 +120,7 @@ thread_init (void) {
 	lock_init (&tid_lock);
 	list_init (&ready_list);
 	list_init (&destruction_req);
+	list_init (&sleep_list);
 
 	/* Set up a thread structure for the running thread. */
 	initial_thread = running_thread ();
@@ -332,21 +334,25 @@ thread_sleep(int64_t ticks) {
   intr_set_level (old_level);
 }
 
-void
-thread_awake(int64_t current_ticks) {
-  struct list_elem *e = list_begin(&sleep_list);
-
-  while (e != list_end(&sleep_list)) {
-    struct thread *t = list_entry(e, struct thread, elem);
-    if (t->wakeup <= current_ticks) {
-      e = list_remove(e);
-      thread_unblock(t);
-    } else {
-      e = list_next(e);
+void thread_awake(int64_t current_ticks)
+{
+    struct list_elem *e = list_begin(&sleep_list);
+    while (e != list_end(&sleep_list))
+    {
+        struct thread *t = list_entry(e, struct thread, elem);
+        if (t->wakeup <= current_ticks)
+        {
+            enum intr_level old_level = intr_disable(); // 인터럽트 끄기 추가
+            e = list_remove(e);
+            thread_unblock(t);
+            intr_set_level(old_level);
+        }
+        else
+        {
+            e = list_next(e);
+        }
     }
-  }
 }
-
 
 
 
