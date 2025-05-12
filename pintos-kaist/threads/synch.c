@@ -282,19 +282,20 @@ void cond_init(struct condition *cond)
 void cond_wait(struct condition *cond, struct lock *lock)
 {
 	struct semaphore_elem waiter;
-
+	
 	ASSERT(cond != NULL);
 	ASSERT(lock != NULL);
 	ASSERT(!intr_context());
 	ASSERT(lock_held_by_current_thread(lock));
 
 	sema_init(&waiter.semaphore, 0);
-	// list_push_back (&cond->waiters, &waiter.elem);
-	list_insert_ordered(&cond->waiters, &waiter.elem, cmp_priority, NULL);
+	// list_push_back (&cond->waiters, &waiter.elem); // 이게 의미하는 바: 컨디션 대기열에 현재 
+	list_insert_ordered(&cond->waiters, &waiter.elem, cmp_priority_for_sema, NULL);
 	lock_release(lock);
 	sema_down(&waiter.semaphore);
 	lock_acquire(lock);
 }
+
 
 /* If any threads are waiting on COND (protected by LOCK), then
    this function signals one of them to wake up from its wait.
@@ -313,13 +314,13 @@ void cond_signal(struct condition *cond, struct lock *lock UNUSED)
 	{
 		enum intr_level old_level;
 		old_level = intr_disable();
-		list_sort(&cond->waiters, cmp_priority, NULL);
+		list_sort(&cond->waiters, cmp_priority_for_sema, NULL);
 		intr_set_level(old_level);
 		sema_up(&list_entry(list_pop_front(&cond->waiters),
 							struct semaphore_elem, elem)
 					 ->semaphore);
-		thread_yield();
 	}
+	// thread_yield(); 
 }
 
 /* Wakes up all threads, if any, waiting on COND (protected by
@@ -335,4 +336,16 @@ void cond_broadcast(struct condition *cond, struct lock *lock)
 
 	while (!list_empty(&cond->waiters))
 		cond_signal(cond, lock);
+}
+
+// compare priority of threads of list_elems
+bool cmp_priority_for_sema(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)
+{
+	struct semaphore_elem *sea = list_entry(a, struct semaphore_elem, elem);
+	struct semaphore_elem *seb = list_entry(b, struct semaphore_elem, elem);
+
+	struct thread *ta = list_entry(list_begin(&(sea->semaphore.waiters)), struct thread, elem);
+	struct thread *tb = list_entry(list_begin(&(seb->semaphore.waiters)), struct thread, elem);
+
+	return ta->priority > tb->priority;
 }

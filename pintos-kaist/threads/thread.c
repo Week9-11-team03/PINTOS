@@ -341,17 +341,11 @@ void thread_yield(void)
 void thread_set_priority(int new_priority)
 {
 	struct thread *old_t = thread_current();
-	thread_current()->priority = new_priority;
-	dprintf("[%p] set priority to %d\n", thread_current(), new_priority);
-	list_sort(&ready_list, cmp_priority, NULL);
-	dprintf("[%p] reordered ready list according to priority\n", thread_current());
-	// print_thread_list(&ready_list);
-	struct list_elem *ready_head = list_begin(&ready_list);
-	struct thread *head_thread = list_entry(ready_head, struct thread, elem);
 
-	dprintf("current ready list head: %p, priority: %d\n", head_thread, head_thread->priority);
+	thread_current()->priority = new_priority;
+	list_sort(&ready_list, cmp_priority, NULL);
+	
 	thread_yield();
-	dprintf("%p -> %p\n", old_t, thread_current());
 }
 
 /* Returns the current thread's priority. */
@@ -715,6 +709,7 @@ bool cmp_priority(const struct list_elem *a, const struct list_elem *b, void *au
 	struct thread *tb = list_entry(b, struct thread, elem);
 	return ta->priority > tb->priority;
 }
+
 
 void print_thread_list(struct list *l)
 {
