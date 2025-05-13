@@ -123,10 +123,10 @@ void thread_tick (void);
 void thread_print_stats (void);
 
 typedef void thread_func (void *aux);
-tid_t thread_create (const char *name, int priority, thread_func *, void *);
+tid_t thread_create (const char *name, int priority, thread_func *function, void *aux);//
 
 void thread_block (void);
-void thread_unblock (struct thread *);
+void thread_unblock (struct thread *t);//
 
 struct thread *thread_current (void);
 tid_t thread_tid (void);
@@ -136,7 +136,7 @@ void thread_exit (void) NO_RETURN;
 void thread_yield (void);
 
 int thread_get_priority (void);
-void thread_set_priority (int);
+void thread_set_priority (int new_priority);//
 
 int thread_get_nice (void);
 void thread_set_nice (int);
@@ -149,6 +149,10 @@ void do_iret (struct intr_frame *tf);
 
 void thread_sleep(int64_t ticks);
 void thread_awake(int64_t ticks);
+
+
+void test_max_priority(void);
+bool thread_priority_cmp(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
 
 
 #endif /* threads/thread.h */

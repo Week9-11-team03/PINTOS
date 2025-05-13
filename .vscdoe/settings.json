@@ -1,0 +1,9 @@
+{
+    "terminal.integrated.profiles.linux": {
+      "bash-with-activate": {
+        "path": "bash",
+        "args": ["--rcfile", "${workspaceFolder}/.vscode/bashrc_with_activate"]
+      }
+    },
+    "terminal.integrated.defaultProfile.linux": "bashrc-with-activate"
+  }
