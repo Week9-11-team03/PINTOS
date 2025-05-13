@@ -193,17 +193,16 @@ void lock_acquire(struct lock *lock)
 	ASSERT(lock != NULL);
 	ASSERT(!intr_context());
 	ASSERT(!lock_held_by_current_thread(lock));
+	
 	if (lock->holder != NULL)
 	{
 		enum intr_level old_level = intr_disable();
 		list_push_back(&lock->holder->donations, &thread_current()->d_elem);
 		intr_set_level(old_level);
-		if (lock->holder->priority < thread_current()->priority)
-		{ 
-			lock->holder->priority = thread_current()->priority;
-		}
+		lock->holder->priority = get_max_priority(&lock->holder->donations, lock->holder->origin_priority);
 	}
 
+	thread_current()->wait_on_lock = lock;
 	sema_down(&lock->semaphore);
 
 	// 내가 락을 획득한 상황. donations 리스트를 관리해야 하는 입장.
@@ -243,12 +242,6 @@ void lock_release(struct lock *lock)
 	// 여기 개선
 	lock->holder->priority = get_max_priority(&lock->holder->donations, lock->holder->origin_priority);
 
-	if (!list_empty(&thread_current()->donations))
-	{
-		struct thread *next_holder = list_pop_front(&thread_current()->donations);
-		next_holder->donations = lock->holder->donations;
-	}
-
 	lock->holder = NULL;
 	sema_up(&lock->semaphore);
 }
@@ -257,11 +250,13 @@ int get_max_priority(struct list *l, int origin_priority)
 {
 	int max_priority = origin_priority;
 	struct list_elem *e;
-	for ( e = list_begin(l); e != list_end(l); e = list_next(e))
-	{
-		struct thread *curr = list_entry(e, struct thread, elem);
-		if (max_priority < curr->priority) {
-			max_priority = curr->priority;
+	if (!list_empty(l)) {
+		for ( e = list_begin(l); e != list_end(l); e = list_next(e))
+		{
+			struct thread *curr = list_entry(e, struct thread, d_elem);
+			if (max_priority < curr->priority) {
+				max_priority = curr->priority;
+			}
 		}
 	}
 
