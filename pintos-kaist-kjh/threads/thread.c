@@ -165,6 +165,15 @@ thread_print_stats (void) {
 			idle_ticks, kernel_ticks, user_ticks);
 }
 
+void thread_test_preemption(void) {
+    if (!list_empty(&ready_list)) {
+        struct thread *max_ready = list_entry(list_front(&ready_list), struct thread, elem);
+        if (max_ready->priority > thread_current()->priority) {
+            thread_yield();
+        }
+    }
+}
+
 /* Creates a new kernel thread named NAME with the given initial
    PRIORITY, which executes FUNCTION passing AUX as the argument,
    and adds it to the ready queue.  Returns the thread identifier
@@ -211,6 +220,14 @@ thread_create (const char *name, int priority,
 	/* Add to run queue. */
 	thread_unblock (t);
 
+	// priority
+	/*
+	if (t->priority > thread_current()->priority) {
+		thread_yield();
+	}
+	*/
+	thread_test_preemption();
+	
 	return tid;
 }
 
@@ -226,6 +243,31 @@ thread_block (void) {
 	ASSERT (intr_get_level () == INTR_OFF);
 	thread_current ()->status = THREAD_BLOCKED;
 	schedule ();
+}
+
+/* 두 스레드의 우선순위를 비교하는 함수 (내림차순 정렬용) 
+  
+  @param a   : 비교할 첫 번째 list_elem (struct thread의 elem 멤버)
+  @param b   : 비교할 두 번째 list_elem
+  @param aux : 사용되지 않는 매개변수 (컴파일러 경고 방지용 UNUSED)
+  @return    : a의 우선순위가 b보다 높으면 true, 그렇지 않으면 false
+  
+  ▶ list_insert_ordered()에서 우선순위 기반 정렬을 위해 사용됨
+  ▶ ready_list, waiters 리스트 등 우선순위 정렬이 필요한 모든 곳에서 활용
+  ▶ list_entry 매크로로 list_elem → struct thread 변환 후 priority 비교 */
+bool thread_cmp_priority(const struct list_elem *a, 
+                 const struct list_elem *b, 
+                 void *aux UNUSED) {
+    // list_elem으로부터 상위 구조체(struct thread) 포인터 추출
+    const struct thread *t_a = list_entry(a, struct thread, elem);
+    const struct thread *t_b = list_entry(b, struct thread, elem);
+    
+	if (t_a == NULL || t_b == NULL){
+		return false;
+	}
+
+    // 높은 우선순위가 앞에 오도록 내림차순 정렬 (true: a가 b보다 우선)
+    return t_a->priority > t_b->priority;
 }
 
 /* Transitions a blocked thread T to the ready-to-run state.
@@ -244,10 +286,12 @@ thread_unblock (struct thread *t) {
 
 	old_level = intr_disable ();
 	ASSERT (t->status == THREAD_BLOCKED);
-	list_push_back (&ready_list, &t->elem);
+	// list_push_back (&ready_list, &t->elem);		// FIFO 방식 
+	list_insert_ordered(& ready_list, & t->elem, thread_cmp_priority, NULL);	// priority 방식
 	t->status = THREAD_READY;
 	intr_set_level (old_level);
 }
+
 
 // 두 스레드의 wake_up_tick 값을 비교해서
 // a가 b보다 먼저 깨어나야 하면 true를 반환한다.
@@ -315,8 +359,6 @@ void thread_awake(int64_t current_tick) {
     }
 }
 
-
-
 /* Returns the name of the running thread. */
 const char *
 thread_name (void) {
@@ -368,22 +410,39 @@ thread_exit (void) {
    may be scheduled again immediately at the scheduler's whim. */
 void
 thread_yield (void) {
-	struct thread *curr = thread_current ();
-	enum intr_level old_level;
+    // 현재 실행 중인 스레드 포인터 획득
+    struct thread *curr = thread_current ();
+    enum intr_level old_level;
 
-	ASSERT (!intr_context ());
+    // 인터럽트 컨텍스트에서 호출 금지 검증
+    // (인터럽트 핸들러 내부에서 yield 시도 방지)
+    ASSERT (!intr_context ());
 
-	old_level = intr_disable ();
-	if (curr != idle_thread)
-		list_push_back (&ready_list, &curr->elem);
-	do_schedule (THREAD_READY);
-	intr_set_level (old_level);
+    // 인터럽트 비활성화 (동기화 보장)
+    old_level = intr_disable ();
+
+    // 현재 스레드가 idle 스레드가 아닌 경우에만 처리
+    if (curr != idle_thread)
+        // ready_list 끝에 현재 스레드 추가 (FIFO 방식)
+        // list_push_back (&ready_list, &curr->elem);
+
+		// priority의 맞게 현재 스레드 추가 (Priority 방식)
+		list_insert_ordered(& ready_list, & curr->elem, thread_cmp_priority, NULL);	// priority 방식
+
+    // 스케줄러 호출로 컨텍스트 스위칭 수행
+    // THREAD_READY 상태로 전환되며 ready_list에서 다음 스레드 선택
+    do_schedule (THREAD_READY);
+
+    // 인터럽트 상태 복원
+    intr_set_level (old_level);
 }
+
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void
 thread_set_priority (int new_priority) {
 	thread_current ()->priority = new_priority;
+	thread_test_preemption();
 }
 
 /* Returns the current thread's priority. */

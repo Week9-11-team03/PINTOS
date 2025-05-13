@@ -147,4 +147,8 @@ int thread_get_load_avg (void);
 
 void do_iret (struct intr_frame *tf);
 
+// Priority Scheduling
+bool thread_cmp_priority(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
+void thread_test_preemption(void);
+
 #endif /* threads/thread.h */

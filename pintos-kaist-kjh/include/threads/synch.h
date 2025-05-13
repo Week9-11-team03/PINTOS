@@ -38,6 +38,9 @@ void cond_wait (struct condition *, struct lock *);
 void cond_signal (struct condition *, struct lock *);
 void cond_broadcast (struct condition *, struct lock *);
 
+// 우선순위 비교 함수 : 조건 변수 waiters 리스트용
+bool sema_cmp_priority(const struct list_elem *, const struct list_elem *, void *);
+
 /* Optimization barrier.
  *
  * The compiler will not reorder operations across an
