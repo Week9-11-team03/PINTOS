@@ -193,8 +193,20 @@ void lock_acquire(struct lock *lock)
 	ASSERT(lock != NULL);
 	ASSERT(!intr_context());
 	ASSERT(!lock_held_by_current_thread(lock));
+	if (lock->holder != NULL)
+	{
+		enum intr_level old_level = intr_disable();
+		list_push_back(&lock->holder->donations, &thread_current()->d_elem);
+		intr_set_level(old_level);
+		if (lock->holder->priority < thread_current()->priority)
+		{
+			lock->holder->priority = thread_current()->priority;
+		}
+	}
 
 	sema_down(&lock->semaphore);
+
+	// 내가 락을 획득한 상황. donations 리스트를 관리해야 하는 입장.
 	lock->holder = thread_current();
 }
 
@@ -227,6 +239,13 @@ void lock_release(struct lock *lock)
 {
 	ASSERT(lock != NULL);
 	ASSERT(lock_held_by_current_thread(lock));
+
+	lock->holder->priority = lock->holder->origin_priority;
+	if (!list_empty(&thread_current()->donations))
+	{
+		struct thread *next_holder = list_pop_front(&thread_current()->donations);
+		next_holder->donations = lock->holder->donations;
+	}
 
 	lock->holder = NULL;
 	sema_up(&lock->semaphore);
@@ -282,20 +301,19 @@ void cond_init(struct condition *cond)
 void cond_wait(struct condition *cond, struct lock *lock)
 {
 	struct semaphore_elem waiter;
-	
+
 	ASSERT(cond != NULL);
 	ASSERT(lock != NULL);
 	ASSERT(!intr_context());
 	ASSERT(lock_held_by_current_thread(lock));
 
 	sema_init(&waiter.semaphore, 0);
-	// list_push_back (&cond->waiters, &waiter.elem); // 이게 의미하는 바: 컨디션 대기열에 현재 
+	// list_push_back (&cond->waiters, &waiter.elem); // 이게 의미하는 바: 컨디션 대기열에 현재
 	list_insert_ordered(&cond->waiters, &waiter.elem, cmp_priority_for_sema, NULL);
 	lock_release(lock);
 	sema_down(&waiter.semaphore);
 	lock_acquire(lock);
 }
-
 
 /* If any threads are waiting on COND (protected by LOCK), then
    this function signals one of them to wake up from its wait.
@@ -320,7 +338,7 @@ void cond_signal(struct condition *cond, struct lock *lock UNUSED)
 							struct semaphore_elem, elem)
 					 ->semaphore);
 	}
-	// thread_yield(); 
+	// thread_yield();
 }
 
 /* Wakes up all threads, if any, waiting on COND (protected by

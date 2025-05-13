@@ -110,6 +110,7 @@ void thread_init(void)
 	list_init(&ready_list);
 	list_init(&destruction_req);
 	list_init(&sleep_list);
+
 	global_tick = INT64_MAX;
 	// dprintf("Thread INIT called! \n"); //
 
@@ -448,6 +449,8 @@ init_thread(struct thread *t, const char *name, int priority)
 	t->tf.rsp = (uint64_t)t + PGSIZE - sizeof(void *);
 	t->priority = priority;
 	t->magic = THREAD_MAGIC;
+	t->origin_priority = t->priority;
+	list_init(&t->donations);
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
