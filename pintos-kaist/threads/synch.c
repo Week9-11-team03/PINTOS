@@ -199,7 +199,7 @@ void lock_acquire(struct lock *lock)
 		list_push_back(&lock->holder->donations, &thread_current()->d_elem);
 		intr_set_level(old_level);
 		if (lock->holder->priority < thread_current()->priority)
-		{
+		{ 
 			lock->holder->priority = thread_current()->priority;
 		}
 	}
@@ -240,7 +240,9 @@ void lock_release(struct lock *lock)
 	ASSERT(lock != NULL);
 	ASSERT(lock_held_by_current_thread(lock));
 
-	lock->holder->priority = lock->holder->origin_priority;
+	// 여기 개선
+	lock->holder->priority = get_max_priority(&lock->holder->donations, lock->holder->origin_priority);
+
 	if (!list_empty(&thread_current()->donations))
 	{
 		struct thread *next_holder = list_pop_front(&thread_current()->donations);
@@ -249,6 +251,21 @@ void lock_release(struct lock *lock)
 
 	lock->holder = NULL;
 	sema_up(&lock->semaphore);
+}
+
+int get_max_priority(struct list *l, int origin_priority)
+{
+	int max_priority = origin_priority;
+	struct list_elem *e;
+	for ( e = list_begin(l); e != list_end(l); e = list_next(e))
+	{
+		struct thread *curr = list_entry(e, struct thread, elem);
+		if (max_priority < curr->priority) {
+			max_priority = curr->priority;
+		}
+	}
+
+	return max_priority;
 }
 
 /* Returns true if the current thread holds LOCK, false

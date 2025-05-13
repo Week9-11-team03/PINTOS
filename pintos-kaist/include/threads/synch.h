@@ -37,7 +37,7 @@ void cond_init (struct condition *);
 void cond_wait (struct condition *, struct lock *);
 void cond_signal (struct condition *, struct lock *);
 void cond_broadcast (struct condition *, struct lock *);
-
+int get_max_priority(struct list *l, int origin_priority);
 bool cmp_priority_for_sema(const struct list_elem *a, const struct list_elem *b, void *aux);
 
 /* Optimization barrier.
