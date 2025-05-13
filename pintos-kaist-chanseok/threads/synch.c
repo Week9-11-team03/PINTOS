@@ -57,21 +57,44 @@ sema_init (struct semaphore *sema, unsigned value) {
    interrupts disabled, but if it sleeps then the next scheduled
    thread will probably turn interrupts back on. This is
    sema_down function. */
+// void
+// sema_down (struct semaphore *sema) {
+// 	enum intr_level old_level;
+
+// 	ASSERT (sema != NULL);
+// 	ASSERT (!intr_context ());
+
+// 	old_level = intr_disable ();
+// 	while (sema->value == 0) {
+// 		list_push_back (&sema->waiters, &thread_current ()->elem);
+// 		thread_block ();
+// 	}
+// 	sema->value--;
+// 	intr_set_level (old_level);
+// }
 void
-sema_down (struct semaphore *sema) {
-	enum intr_level old_level;
+sema_down(struct semaphore *sema) {
+    // 인터럽트를 비활성화해서 race condition 방지
+    enum intr_level old_level = intr_disable();
 
-	ASSERT (sema != NULL);
-	ASSERT (!intr_context ());
+    // 세마포어의 value가 0이면, 다른 스레드가 자원을 점유 중인 상태이므로
+    // 현재 스레드는 대기(waiters 리스트에 추가)해야 함
+    while (sema->value == 0) {
+        // 현재 스레드를 waiters 리스트에 우선순위(priority) 기준으로 정렬 삽입
+        // 높은 priority가 앞에 오도록 insert
+        list_insert_ordered(&sema->waiters, &thread_current()->elem, thread_priority_cmp, NULL);
 
-	old_level = intr_disable ();
-	while (sema->value == 0) {
-		list_push_back (&sema->waiters, &thread_current ()->elem);
-		thread_block ();
-	}
-	sema->value--;
-	intr_set_level (old_level);
+        // 현재 스레드를 BLOCKED 상태로 전환하고 스케줄러에게 CPU 양보
+        thread_block();
+    }
+
+    // 자원이 사용 가능하므로 세마포어 값을 감소시킴 (자원 하나 소비)
+    sema->value--;
+
+    // 이전 인터럽트 상태로 복원 (다시 인터럽트 활성화)
+    intr_set_level(old_level);
 }
+
 
 /* Down or "P" operation on a semaphore, but only if the
    semaphore is not already 0.  Returns true if the semaphore is
@@ -102,19 +125,46 @@ sema_try_down (struct semaphore *sema) {
    and wakes up one thread of those waiting for SEMA, if any.
 
    This function may be called from an interrupt handler. */
+// void
+// sema_up (struct semaphore *sema) {
+// 	enum intr_level old_level;
+
+// 	ASSERT (sema != NULL);
+
+// 	old_level = intr_disable ();
+// 	if (!list_empty (&sema->waiters))
+// 		thread_unblock (list_entry (list_pop_front (&sema->waiters),
+// 					struct thread, elem));
+// 	sema->value++;
+// 	intr_set_level (old_level);
+// }
+
 void
-sema_up (struct semaphore *sema) {
-	enum intr_level old_level;
+sema_up(struct semaphore *sema) {
+    // 인터럽트를 비활성화해서 동기화 문제 방지 (critical section 보호)
+    enum intr_level old_level = intr_disable();
 
-	ASSERT (sema != NULL);
+    // 대기 중인 스레드가 있으면 (waiters 리스트가 비어 있지 않으면)
+    if (!list_empty(&sema->waiters)) {
+        // waiters 리스트를 우선순위(priority)가 높은 스레드가 먼저 오도록 정렬
+        list_sort(&sema->waiters, thread_priority_cmp, NULL);
 
-	old_level = intr_disable ();
-	if (!list_empty (&sema->waiters))
-		thread_unblock (list_entry (list_pop_front (&sema->waiters),
-					struct thread, elem));
-	sema->value++;
-	intr_set_level (old_level);
+        // 가장 높은 우선순위의 스레드를 리스트에서 꺼냄
+        struct thread *t = list_entry(list_pop_front(&sema->waiters), struct thread, elem);
+
+        // 해당 스레드를 READY 상태로 바꾸어 ready_list에 추가
+        thread_unblock(t);
+    }
+    // 세마포어 값을 증가시킴 (자원이 해제됨을 의미)
+    sema->value++;
+
+    // 만약 현재 running thread보다 ready_list에 더 높은 priority가 있으면 yield
+    test_max_priority();
+
+    // 인터럽트 상태를 원래대로 복원
+    intr_set_level(old_level);
 }
+
 
 static void sema_test_helper (void *sema_);
 
@@ -272,6 +322,22 @@ cond_init (struct condition *cond) {
    interrupt handler.  This function may be called with
    interrupts disabled, but interrupts will be turned back on if
    we need to sleep. */
+   static bool
+   cond_sema_priority_cmp(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED) {
+	   struct semaphore_elem *sema_a = list_entry(a, struct semaphore_elem, elem);
+	   struct semaphore_elem *sema_b = list_entry(b, struct semaphore_elem, elem);
+
+	   //예외처리 추가
+	   if (list_empty(&sema_a->semaphore.waiters)) return false;
+	   if (list_empty(&sema_b->semaphore.waiters)) return true;
+   
+	   struct thread *t_a = list_entry(list_front(&sema_a->semaphore.waiters), struct thread, elem);
+	   struct thread *t_b = list_entry(list_front(&sema_b->semaphore.waiters), struct thread, elem);
+   
+	   return t_a->priority > t_b->priority;
+   }
+   
+
 void
 cond_wait (struct condition *cond, struct lock *lock) {
 	struct semaphore_elem waiter;
@@ -282,11 +348,15 @@ cond_wait (struct condition *cond, struct lock *lock) {
 	ASSERT (lock_held_by_current_thread (lock));
 
 	sema_init (&waiter.semaphore, 0);
-	list_push_back (&cond->waiters, &waiter.elem);
+	//list_push_back (&cond->waiters, &waiter.elem);
+	list_insert_ordered(&cond->waiters, &waiter.elem, cond_sema_priority_cmp, NULL);
+
 	lock_release (lock);
 	sema_down (&waiter.semaphore);
 	lock_acquire (lock);
 }
+
+
 
 /* If any threads are waiting on COND (protected by LOCK), then
    this function signals one of them to wake up from its wait.
@@ -295,17 +365,23 @@ cond_wait (struct condition *cond, struct lock *lock) {
    An interrupt handler cannot acquire a lock, so it does not
    make sense to try to signal a condition variable within an
    interrupt handler. */
-void
-cond_signal (struct condition *cond, struct lock *lock UNUSED) {
-	ASSERT (cond != NULL);
-	ASSERT (lock != NULL);
-	ASSERT (!intr_context ());
-	ASSERT (lock_held_by_current_thread (lock));
-
-	if (!list_empty (&cond->waiters))
-		sema_up (&list_entry (list_pop_front (&cond->waiters),
-					struct semaphore_elem, elem)->semaphore);
-}
+   void
+   cond_signal (struct condition *cond, struct lock *lock UNUSED) {
+	   ASSERT (cond != NULL);
+	   ASSERT (lock != NULL);
+	   ASSERT (!intr_context ());
+	   ASSERT (lock_held_by_current_thread (lock));
+   
+	   if (!list_empty (&cond->waiters)) {
+		
+		   // 우선순위 높은 순으로 정렬
+		   list_sort(&cond->waiters, cond_sema_priority_cmp, NULL);
+		   struct semaphore_elem *sema_elem = list_entry(
+			   list_pop_front(&cond->waiters), struct semaphore_elem, elem);
+		   sema_up(&sema_elem->semaphore);
+	   }
+   }
+   
 
 /* Wakes up all threads, if any, waiting on COND (protected by
    LOCK).  LOCK must be held before calling this function.
@@ -320,4 +396,7 @@ cond_broadcast (struct condition *cond, struct lock *lock) {
 
 	while (!list_empty (&cond->waiters))
 		cond_signal (cond, lock);
+
 }
+
+

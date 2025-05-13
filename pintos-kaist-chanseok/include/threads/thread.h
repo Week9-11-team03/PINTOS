@@ -138,6 +138,7 @@ void thread_yield (void);
 int thread_get_priority (void);
 void thread_set_priority (int new_priority);//
 
+
 int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
@@ -153,6 +154,10 @@ void thread_awake(int64_t ticks);
 
 void test_max_priority(void);
 bool thread_priority_cmp(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
+
+int original_priority;               // 기부받기 전 우선순위
+struct list donations;              // 기부 리스트
+struct lock *wait_on_lock;          // 어떤 락을 기다리는 중인지
 
 
 #endif /* threads/thread.h */

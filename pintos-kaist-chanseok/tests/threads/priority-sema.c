@@ -37,6 +37,8 @@ test_priority_sema (void)
     }
 }
 
+
+
 static void
 priority_sema_thread (void *aux UNUSED) 
 {

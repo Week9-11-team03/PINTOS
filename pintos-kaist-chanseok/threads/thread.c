@@ -229,7 +229,7 @@ thread_create (const char *name, int priority,
    is usually a better idea to use one of the synchronization
    primitives in synch.h. */
 void
-thread_block (void) {
+thread_block (void) { //핵심 스레드 차단 함수
 	ASSERT (!intr_context ());
 	ASSERT (intr_get_level () == INTR_OFF);
 	thread_current ()->status = THREAD_BLOCKED;
@@ -363,10 +363,6 @@ bool thread_priority_cmp(const struct list_elem *a, const struct list_elem *b, v
 }
 
 
-
-
-
-
 /* Sets the current thread's priority to NEW_PRIORITY. */
 // void
 // thread_set_priority (int new_priority) {
@@ -375,16 +371,28 @@ bool thread_priority_cmp(const struct list_elem *a, const struct list_elem *b, v
 
 void
 thread_set_priority (int new_priority) {
-    struct thread *curr = thread_current ();
-    curr->priority = new_priority;
+    // struct thread *curr = thread_current ();
+    // curr->priority = new_priority;
 
+    // if (!list_empty(&ready_list)) {
+    //     struct thread *front = list_entry(list_front(&ready_list), struct thread, elem);
+    //     if (front->priority > curr->priority) {
+    //         thread_yield();
+    //     }
+    // }
+
+	thread_current()->priority = new_priority;
+	test_max_priority();
+}
+
+void test_max_priority(void) {
     if (!list_empty(&ready_list)) {
-        struct thread *front = list_entry(list_front(&ready_list), struct thread, elem);
-        if (front->priority > curr->priority) {
+        struct thread *highest = list_entry(list_front(&ready_list), struct thread, elem);
+        if (thread_current()->priority < highest->priority)
             thread_yield();
-        }
     }
 }
+
 
 
 
