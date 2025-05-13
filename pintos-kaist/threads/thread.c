@@ -347,17 +347,8 @@ void thread_set_priority(int new_priority)
 
 	thread_current()->origin_priority = thread_current()->priority = new_priority;
 	list_sort(&ready_list, cmp_priority, NULL);
-
-	// if (thread_current()->wait_on_lock != NULL) {
-	// 	for (struct list_elem *e = &(thread_current()->d_elem); list_prev(&e) != list_begin(&(thread_current()->wait_on_lock->holder->donations)); e = list_prev(&e))
-	// 	{
-	// 		struct thread *curr = list_entry(e, struct thread, elem);
-	// 		if (thread_current()->priority > curr->priority)
-	// 		{
-	// 			curr->priority = thread_current()->priority;
-	// 		}
-	// 	}
-	// }
+	
+	thread_current()->priority = get_max_priority(&(thread_current()->donations), thread_current()->origin_priority);
 
 
 	thread_yield();
