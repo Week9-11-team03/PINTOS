@@ -219,8 +219,8 @@ tid_t thread_create(const char *name, int priority,
 
 	struct thread *curr = thread_current();
 
-	if (t->priority > curr->priority) thread_yield();
-	
+	if (t->priority > curr->priority)
+		thread_yield();
 
 	return tid;
 }
@@ -254,12 +254,12 @@ void thread_unblock(struct thread *t)
 	ASSERT(is_thread(t));
 
 	old_level = intr_disable();
-	
+
 	ASSERT(t->status == THREAD_BLOCKED);
 	// list_push_back(&ready_list, &t->elem);
 	list_insert_ordered(&ready_list, &t->elem, cmp_priority, NULL);
 	t->status = THREAD_READY;
-	
+
 	intr_set_level(old_level);
 }
 
@@ -345,9 +345,21 @@ void thread_set_priority(int new_priority)
 {
 	struct thread *old_t = thread_current();
 
-	thread_current()->priority = new_priority;
+	thread_current()->origin_priority = thread_current()->priority = new_priority;
 	list_sort(&ready_list, cmp_priority, NULL);
-	
+
+	// if (thread_current()->wait_on_lock != NULL) {
+	// 	for (struct list_elem *e = &(thread_current()->d_elem); list_prev(&e) != list_begin(&(thread_current()->wait_on_lock->holder->donations)); e = list_prev(&e))
+	// 	{
+	// 		struct thread *curr = list_entry(e, struct thread, elem);
+	// 		if (thread_current()->priority > curr->priority)
+	// 		{
+	// 			curr->priority = thread_current()->priority;
+	// 		}
+	// 	}
+	// }
+
+
 	thread_yield();
 }
 
@@ -451,6 +463,7 @@ init_thread(struct thread *t, const char *name, int priority)
 	t->magic = THREAD_MAGIC;
 	t->origin_priority = t->priority;
 	list_init(&t->donations);
+	t->wait_on_lock = NULL;
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
@@ -669,7 +682,8 @@ void wakeup()
 		{
 			enum intr_level older_level;
 			older_level = intr_disable();
-			if (curr != idle_thread){
+			if (curr != idle_thread)
+			{
 				list_remove(e);
 				thread_unblock(curr);
 				intr_set_level(older_level);
@@ -715,12 +729,11 @@ bool cmp_priority(const struct list_elem *a, const struct list_elem *b, void *au
 	return ta->priority > tb->priority;
 }
 
-
 void print_thread_list(struct list *l)
 {
 	struct list_elem *e;
 	dprintf("printing list %p\n", l);
-	for ( e = list_begin(&l); e != list_end(&l); e = list_next(e))
+	for (e = list_begin(&l); e != list_end(&l); e = list_next(e))
 	{
 		struct thread *t = list_entry(e, struct thread, elem);
 		printf("%p, %d->", t, t->priority);

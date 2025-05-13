@@ -98,6 +98,7 @@ struct thread {
 	struct list_elem elem;              /* List element. */
 	struct list_elem d_elem;              /* List element. */
 	struct list donations;
+	struct lock *wait_on_lock; 
 
 
 #ifdef USERPROG
