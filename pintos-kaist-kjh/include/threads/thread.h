@@ -91,7 +91,10 @@ struct thread {
 	enum thread_status status;          /* Thread state. */
 	char name[16];                      /* Name (for debugging purposes). */
 	int priority;                       /* Priority. */
+	int init_priority;					/* 원래 우선순위(초기 우선순위) */
 	int64_t wakeup_tick;				/* 깨워야 할 시각 */
+	struct list hold_list;				/* 현재 잡고 있는 락 리스트*/
+	struct lock *wait_on_lock;			/* 이 스레드가 기다리고 있는 락*/
 
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
@@ -150,5 +153,8 @@ void do_iret (struct intr_frame *tf);
 // Priority Scheduling
 bool thread_cmp_priority(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
 void thread_test_preemption(void);
+
+void donate_priority(void);
+void refresh_priority(void);
 
 #endif /* threads/thread.h */

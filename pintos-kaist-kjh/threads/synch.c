@@ -214,8 +214,17 @@ lock_acquire (struct lock *lock) {
 	ASSERT (!intr_context ());
 	ASSERT (!lock_held_by_current_thread (lock));
 
+	struct thread *cur_t = thread_current();
+	if (lock->holder != NULL) {
+		cur_t->wait_on_lock = lock;
+		donate_priority();
+	}
+
 	sema_down (&lock->semaphore);
-	lock->holder = thread_current ();
+
+	cur_t->wait_on_lock = NULL;
+	lock->holder = cur_t;
+	list_push_back(&cur_t->hold_list, &lock->elem);
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -243,13 +252,21 @@ lock_try_acquire (struct lock *lock) {
    An interrupt handler cannot acquire a lock, so it does not
    make sense to try to release a lock within an interrupt
    handler. */
-void
-lock_release (struct lock *lock) {
-	ASSERT (lock != NULL);
-	ASSERT (lock_held_by_current_thread (lock));
-
-	lock->holder = NULL;
-	sema_up (&lock->semaphore);
+void lock_release(struct lock *lock) {
+    ASSERT(lock != NULL);
+    ASSERT(lock_held_by_current_thread(lock));
+    
+    // hold_list에서 락 제거
+    list_remove(&lock->elem);
+    
+    // 락 홀더 초기화
+    lock->holder = NULL;
+    
+    // 우선순위 재계산
+    refresh_priority();
+    
+    // 세마포어 해제
+    sema_up(&lock->semaphore);
 }
 
 /* Returns true if the current thread holds LOCK, false

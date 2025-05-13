@@ -205,6 +205,7 @@ thread_create (const char *name, int priority,
 	/* Initialize thread. */
 	init_thread (t, name, priority);
 	tid = t->tid = allocate_tid ();
+	
 
 	/* Call the kernel_thread if it scheduled.
 	 * Note) rdi is 1st argument, and rsi is 2nd argument. */
@@ -439,10 +440,17 @@ thread_yield (void) {
 
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
-void
-thread_set_priority (int new_priority) {
-	thread_current ()->priority = new_priority;
-	thread_test_preemption();
+void thread_set_priority(int new_priority) {
+    struct thread *cur = thread_current();
+    
+    // 원래 우선순위 저장
+    cur->init_priority = new_priority;
+    
+    // 우선순위 기부 상황 확인 후 실제 우선순위 결정
+    refresh_priority();
+    
+    // 선점 검사
+    thread_test_preemption();
 }
 
 /* Returns the current thread's priority. */
@@ -541,6 +549,13 @@ init_thread (struct thread *t, const char *name, int priority) {
 	t->priority = priority;
 	t->wakeup_tick = 0;
 	t->magic = THREAD_MAGIC;
+	t->priority = priority;
+	t->init_priority = priority;
+
+	// 스레드 구조체의 hold_list를 초기화
+	list_init(&t->hold_list);
+	// 스레드 구조체의 wait on lock을 초기화
+	t->wait_on_lock = NULL;
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
@@ -719,4 +734,55 @@ allocate_tid (void) {
 	lock_release (&tid_lock);
 
 	return tid;
+}
+
+void donate_priority(void) {
+    struct thread *cur_t = thread_current();           // 현재 실행 중인 스레드를 가져옴
+    struct lock *cur_lock = cur_t->wait_on_lock;       // 현재 스레드가 기다리고 있는 락을 가져옴
+
+    if (cur_lock == NULL) {                            // 기다리는 락이 없으면 기부할 필요가 없음
+        return;
+    }
+
+    struct thread *holder = cur_lock->holder;          // 락을 소유하고 있는 스레드를 가져옴
+
+    if (holder == NULL) {                              // 락의 소유자가 없으면 기부할 대상이 없음
+        return;
+    }
+
+    while (cur_lock != NULL &&                         // 중첩 기부(nested donation) 처리를 위한 반복문
+           cur_lock->holder != NULL &&                 // 락의 소유자가 있고
+           cur_lock->holder->priority < cur_t->priority) { // 현재 스레드의 우선순위가 더 높을 때만 기부
+
+        cur_lock->holder->priority = cur_t->priority;  // 락 소유자의 우선순위를 현재 스레드의 우선순위로 높임
+
+        cur_t = cur_lock->holder;                      // 다음 단계 기부를 위해 현재 스레드를 락 소유자로 변경
+        cur_lock = cur_t->wait_on_lock;                // 락 소유자가 기다리고 있는 다음 락으로 이동
+    }
+}
+
+void refresh_priority(void) {
+    struct thread *cur_t = thread_current();  // 현재 실행 중인 스레드를 가져옴
+    int max_priority = cur_t->init_priority;  // 현재 스레드의 원래 우선순위(init_priority)로 시작
+
+    // 현재 스레드가 보유한 모든 락(hold_list)을 순회
+    struct list_elem *e;
+    for (e = list_begin(&cur_t->hold_list); e != list_end(&cur_t->hold_list); e = list_next(e)) {
+        // hold_list의 각 요소를 lock 구조체로 변환
+        struct lock *l = list_entry(e, struct lock, elem);
+        
+        // 해당 락을 기다리는 스레드(waiters)가 있는지 확인
+        if (!list_empty(&l->semaphore.waiters)) {
+            // waiters 리스트는 우선순위로 정렬되어 있으므로, 맨 앞의 스레드가 가장 높은 우선순위를 가짐
+            struct thread *t = list_entry(list_front(&l->semaphore.waiters), struct thread, elem);
+
+            // 해당 스레드의 우선순위가 현재까지의 최대 우선순위보다 높으면 갱신
+            if (t->priority > max_priority) {
+                max_priority = t->priority;
+            }
+        }
+    }
+
+    // 계산된 최대 우선순위(원래 우선순위와 기부받은 우선순위 중 높은 값)를 현재 스레드에 적용
+    cur_t->priority = max_priority;
 }

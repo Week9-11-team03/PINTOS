@@ -20,6 +20,7 @@ void sema_self_test (void);
 struct lock {
 	struct thread *holder;      /* Thread holding lock (for debugging). */
 	struct semaphore semaphore; /* Binary semaphore controlling access. */
+	struct list_elem elem		/* List element for thread's hold_list */
 };
 
 void lock_init (struct lock *);
@@ -39,7 +40,7 @@ void cond_signal (struct condition *, struct lock *);
 void cond_broadcast (struct condition *, struct lock *);
 
 // 우선순위 비교 함수 : 조건 변수 waiters 리스트용
-bool sema_cmp_priority(const struct list_elem *, const struct list_elem *, void *);
+bool sema_cmp_priority(const struct list_elem *, const struct list_elem *, void *);	
 
 /* Optimization barrier.
  *
