@@ -198,8 +198,10 @@ void lock_acquire(struct lock *lock)
 	{
 		enum intr_level old_level = intr_disable();
 		list_push_back(&lock->holder->donations, &thread_current()->d_elem);
+		// lock->holder->priority = get_max_priority(&lock->holder->donations, lock->holder->origin_priority);
+		refresh_donation(lock->holder);
 		intr_set_level(old_level);
-		lock->holder->priority = get_max_priority(&lock->holder->donations, lock->holder->origin_priority);
+		
 	}
 
 	thread_current()->wait_on_lock = lock;
@@ -207,6 +209,18 @@ void lock_acquire(struct lock *lock)
 
 	// 내가 락을 획득한 상황. donations 리스트를 관리해야 하는 입장.
 	lock->holder = thread_current();
+	thread_current()->wait_on_lock = NULL;
+}
+
+// refresh donated priority of a thread including it's predecessor and successor
+void refresh_donation(struct thread *thread) {
+
+	while (thread != NULL)
+	{
+		thread->priority = get_max_priority(&thread->donations, thread->origin_priority);
+		if (thread->wait_on_lock == NULL) break;
+		thread = thread->wait_on_lock->holder;
+	}
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
