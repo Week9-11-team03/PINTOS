@@ -239,11 +239,29 @@ void lock_release(struct lock *lock)
 	ASSERT(lock != NULL);
 	ASSERT(lock_held_by_current_thread(lock));
 
+	// 락을 하나 놓는 쓰레드 입장에서, 이제 우선순위를 내려놓을 시간입니다. 내가 내려놓는 락을 기다리던 쓰레드를 모두 작별시켜야 합니다.
+	remove_with_lock(lock);
 	// 여기 개선
 	lock->holder->priority = get_max_priority(&lock->holder->donations, lock->holder->origin_priority);
 
 	lock->holder = NULL;
 	sema_up(&lock->semaphore);
+}
+
+void remove_with_lock(struct lock *lock) {
+    struct thread *curr = thread_current();
+    struct list_elem *e = list_begin(&curr->donations);
+    
+    while (e != list_end(&curr->donations)) {
+        struct thread *t = list_entry(e, struct thread, d_elem);
+        struct list_elem *next = list_next(e);
+        
+        if (t->wait_on_lock == lock) {
+            list_remove(e); // B를 도네이션 리스트에서 제거
+        }
+        
+        e = next;
+    }
 }
 
 int get_max_priority(struct list *l, int origin_priority)
