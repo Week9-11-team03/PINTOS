@@ -232,15 +232,26 @@ lock_init (struct lock *lock) {
    interrupt handler.  This function may be called with
    interrupts disabled, but interrupts will be turned back on if
    we need to sleep. */
-void
-lock_acquire (struct lock *lock) {
-	ASSERT (lock != NULL);
-	ASSERT (!intr_context ());
-	ASSERT (!lock_held_by_current_thread (lock));
-
-	sema_down (&lock->semaphore);
-	lock->holder = thread_current ();
-}
+   void
+   lock_acquire(struct lock *lock) {
+	   ASSERT (lock != NULL);
+	   ASSERT (!intr_context ());
+	   ASSERT (!lock_held_by_current_thread (lock));
+   
+	   struct thread *curr = thread_current();
+   
+	   if (lock->holder != NULL && !thread_mlfqs) {
+		   curr->wait_on_lock = lock;
+		   list_insert_ordered(&lock->holder->donations, &curr->donation_elem, thread_priority_cmp, NULL);
+		   donate_priority();
+	   }
+   
+	   sema_down(&lock->semaphore);
+   
+	   curr->wait_on_lock = NULL;
+	   lock->holder = curr;
+   }
+   
 
 /* Tries to acquires LOCK and returns true if successful or false
    on failure.  The lock must not already be held by the current
@@ -267,14 +278,18 @@ lock_try_acquire (struct lock *lock) {
    An interrupt handler cannot acquire a lock, so it does not
    make sense to try to release a lock within an interrupt
    handler. */
-void
-lock_release (struct lock *lock) {
-	ASSERT (lock != NULL);
-	ASSERT (lock_held_by_current_thread (lock));
-
-	lock->holder = NULL;
-	sema_up (&lock->semaphore);
-}
+   void
+   lock_release(struct lock *lock) {
+	   ASSERT (lock != NULL);
+	   ASSERT (lock_held_by_current_thread (lock));
+   
+	   remove_with_lock(lock); //이 락 을 기다리던 스레드들 기부 리스트에서 제거
+	   refresh_priority(); //기부받은 우선순위 중 가장 높은 값으로 복구
+   
+	   lock->holder = NULL;
+	   sema_up(&lock->semaphore);
+   }
+   
 
 /* Returns true if the current thread holds LOCK, false
    otherwise.  (Note that testing whether some other thread holds
@@ -289,7 +304,7 @@ lock_held_by_current_thread (const struct lock *lock) {
 /* One semaphore in a list. */
 struct semaphore_elem {
 	struct list_elem elem;              /* List element. */
-	struct semaphore semaphore;         /* This semaphore. */
+	struct semaphore semaphore;         /* This semaphore. */ 
 };
 
 /* Initializes condition variable COND.  A condition variable

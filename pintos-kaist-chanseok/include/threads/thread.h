@@ -90,10 +90,13 @@ struct thread {
 	tid_t tid;                          /* Thread identifier. */
 	enum thread_status status;          /* Thread state. */
 	char name[16];                      /* Name (for debugging purposes). */
-	int priority;                       /* Priority. */
 
-	/* Shared between thread.c and synch.c. */
-	struct list_elem elem;              /* List element. */
+	int priority;
+    int origin_priority; //현재 우선순위가 기부된 상태일 때, 원래 우선순위를 저장
+    struct lock *wait_on_lock; // 현재 스레드가 대기 중인 락을 추적하기 위해 사용
+    struct list donations;//기부한 스레들을 저장하는 리스트
+    struct list_elem donation_elem;//다른 스레드의 donations 리스트에 들어갈 때 사용하는 자기 참조 list_elem
+	struct list_elem elem;
 
 int64_t wakeup;
 
@@ -155,9 +158,7 @@ void thread_awake(int64_t ticks);
 void test_max_priority(void);
 bool thread_priority_cmp(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
 
-int original_priority;               // 기부받기 전 우선순위
-struct list donations;              // 기부 리스트
-struct lock *wait_on_lock;          // 어떤 락을 기다리는 중인지
+
 
 
 #endif /* threads/thread.h */
