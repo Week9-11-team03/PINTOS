@@ -1,0 +1,4 @@
+#!/bin/bash
+source ~/.bashrc        # 기존 bash 설정 유지
+source ~/PINTOS/pintos-kaist-chanseok/activate       # 현재 워크스페이스의 activate 실행
+
