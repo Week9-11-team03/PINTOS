@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# 아래 내용을 ~/.bashrc에 작성하고 source 하여 사용
+# export PATH=$PATH:/workspaces/pintos_lab_docker/pintos-kaist/utils/
+# source ~/.bashrc
 import subprocess
 import os
 
@@ -40,3 +43,5 @@ def main(argv):
 if __name__ == '__main__':
     import sys
     main(sys.argv)
+
+

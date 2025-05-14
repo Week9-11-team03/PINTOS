@@ -70,7 +70,7 @@ typedef int tid_t;
  *    2. Second, kernel stacks must not be allowed to grow too
  *       large.  If a stack overflows, it will corrupt the thread
  *       state.  Thus, kernel functions should not allocate large
- *       structures or arrays as non-static local variables.  Use
+ *       structures or arrays as non-local variables.  Use
  *       dynamic allocation with malloc() or palloc_get_page()
  *       instead.
  *
@@ -91,9 +91,15 @@ struct thread {
 	enum thread_status status;          /* Thread state. */
 	char name[16];                      /* Name (for debugging purposes). */
 	int priority;                       /* Priority. */
+	int origin_priority;                       /* Priority. */
+	int64_t local_tick;
 
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
+	struct list_elem d_elem;              /* List element. */
+	struct list donations;
+	struct lock *wait_on_lock; 
+
 
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
@@ -140,7 +146,14 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
-
 void do_iret (struct intr_frame *tf);
 
+void thread_sleep(int64_t local_tick);
+
+int64_t global_tick;
+void wakeup();
+void set_global_tick();
+int64_t get_min_tick();
+bool tick_less(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED); 
+bool cmp_priority(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
 #endif /* threads/thread.h */

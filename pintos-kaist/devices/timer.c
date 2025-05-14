@@ -42,6 +42,7 @@ timer_init (void) {
 	outb (0x40, count & 0xff);
 	outb (0x40, count >> 8);
 
+	//dprintf("timer init\n");
 	intr_register_ext (0x20, timer_interrupt, "8254 Timer");
 }
 
@@ -93,8 +94,9 @@ timer_sleep (int64_t ticks) {
 	int64_t start = timer_ticks ();
 
 	ASSERT (intr_get_level () == INTR_ON);
-	while (timer_elapsed (start) < ticks)
-		thread_yield ();
+
+	if (timer_elapsed(start) < ticks)
+		thread_sleep(start + ticks); // 더 주무셔야 합니다
 }
 
 /* Suspends execution for approximately MS milliseconds. */
@@ -120,12 +122,19 @@ void
 timer_print_stats (void) {
 	printf ("Timer: %"PRId64" ticks\n", timer_ticks ());
 }
-
+
 /* Timer interrupt handler. */
 static void
 timer_interrupt (struct intr_frame *args UNUSED) {
 	ticks++;
 	thread_tick ();
+	//dprintf("global tick: %d \t get_min_tick(): %d", global_tick, get_min_tick());
+	if (global_tick >= timer_ticks()) // if the global invariable is violated..
+	{
+		wakeup();
+	}
+	
+	// edit: at every tick, check whether some thread must wake up from sleep queue and call wake up function
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
