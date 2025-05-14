@@ -239,6 +239,18 @@ void thread_block(void)
 	schedule();
 }
 
+/* Convert n to fixed point */
+int convert_to_fixed(int n) { return n*f; }
+
+/* Convert x to integer(rounding toward zero) */
+int floor(int x) { return x / f; }
+
+/* Convert x to integer (rounding to nearest) */
+int ceil(int x) {
+	if (x >= 0) return x + (f/2);
+}
+
+
 /* Transitions a blocked thread T to the ready-to-run state.
    This is an error if T is not blocked.  (Use thread_yield() to
    make the running thread ready.)
